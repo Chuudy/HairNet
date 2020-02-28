@@ -47,6 +47,14 @@ bpy.types.Object.hnSproutHairs=IntProperty(
         description="Number of additional hairs to add.",
         default=0)
 
+bpy.types.Object.hnUResolution=IntProperty(
+        name="hnUResolution",
+        description="U resolution for curve.",
+        default=1,
+        min=1,
+        max=5)
+
+
 # bpy.types.Object.hnSubdivideHairSections=IntProperty(
 #         name="hnSubdivideHairSections",
 #         description="Number of subdivisions to add along the guide hairs",
@@ -496,6 +504,20 @@ class HAIRNET_OT_operator (bpy.types.Operator):
 
                 '''_T_S create new and out'''
                 options[2] = makeNewHairSystem(targetObject,sysName)
+            
+            # Move curve origin to object origin to prevent hair offset
+            # tempActive = headObj = bpy.context.object
+            # bpy.ops.view3d.snap_cursor_to_active()
+            # bpy.context.view_layer.objects.active=thisHairObj
+            # bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
+            # bpy.context.view_layer.objects.active=tempActive
+
+            # Apply all for curves t prevent hair offset
+            tempActive = bpy.context.object
+            bpy.context.view_layer.objects.active=thisHairObj
+            bpy.ops.apply.transformall()            
+            bpy.context.view_layer.objects.active=tempActive
+
 
             if (self.meshKind=="SHEET"):
                 if debug: print("Hair sheet "+ thisHairObj.name)
@@ -538,6 +560,8 @@ class HAIRNET_OT_operator (bpy.types.Operator):
                 hairObj.select_set(state=True)
 
                 if debug: print("Curve Head: ", headObj.name)
+
+                bpy.context.object.data.resolution_u = hairObj.hnUResolution
                 bpy.ops.object.convert(target='MESH', keep_original=True)
                 fiberObj = bpy.context.active_object
 
@@ -933,6 +957,9 @@ class HAIRNET_PT_panel(bpy.types.Panel):
                 row = box.row()
                 row.label(text = "Guide Subdivisions:")
                 row.prop(thisHairObject, 'hnSproutHairs', text = "Subdivide U")
+                row = box.row()        
+                row.label(text = "Set resolution:")
+                row.prop(thisHairObject, 'hnUResolution', text = "U resolution")
 #                 row.prop(thisHairObject, 'hnSubdivideHairSections', text = "Subdivide V")
 
         #Draw this if it's a self-emitter object
@@ -949,6 +976,9 @@ class HAIRNET_PT_panel(bpy.types.Panel):
             row = box.row()
             row.label(text = "Guide Subdivisions:")
             row.prop(self.headObj, 'hnSproutHairs', text = "Subdivide U")
+            row = box.row()        
+            row.label(text = "Set resolution:")
+            row.prop(self.headObj, 'hnUResolution', text = "U resolution")
 
 class HAIRNET_PT_view_panel(bpy.types.Panel):
     bl_idname = "HAIRNET_PT_view_panel"
@@ -1009,6 +1039,9 @@ class HAIRNET_PT_view_panel(bpy.types.Panel):
                 row = box.row()
                 row.label(text = "Add Guides:")
                 row.prop(thisHairObject, 'hnSproutHairs', text = "SubD")
+                row = box.row()
+                row.label(text = "Set resolution:")
+                row.prop(thisHairObject, 'hnUResolution', text = "URes")
 #                 row.prop(thisHairObject, 'hnSubdivideHairSections', text = "Subdivide V")
 
         #Draw this if it's a self-emitter object
@@ -1025,6 +1058,9 @@ class HAIRNET_PT_view_panel(bpy.types.Panel):
             row = box.row()
             row.label(text = "Guide Subdivisions:")
             row.prop(self.headObj, 'hnSproutHairs', text = "SubD")
+            row = box.row()        
+            row.label(text = "Set resolution:")
+            row.prop(self.headObj, 'hnUResolution', text = "URes")
 
 
 
