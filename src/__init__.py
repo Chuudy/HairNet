@@ -24,6 +24,8 @@ import bpy
 import mathutils
 from mathutils import Vector
 from bpy.props import *
+import time
+import numpy as np
 
 versionString = "0.6.1"
 
@@ -352,6 +354,7 @@ def sortSeamVerts(verts, edges):
                 if len(all_edges) == 1:
                     #The vert is in only one edge and is thus an endpoint
                     startingVerts.append(thisVert)
+                    # startingVerts.insert(0,thisVert)
                     #walk to the other end of the seam and add verts to triedVerts
                     walking = True
                     thatVert = thisVert
@@ -754,32 +757,113 @@ class HAIRNET_OT_operator (bpy.types.Operator):
 
     def fibersToGuides(self, hairObj):
         guides = []
-        hairs = self.getHairsFromFibers(hairObj)
+        start = time.time()
+        hairs = self.getHairsFromFibers(hairObj)  
+        end = time.time()      
+        print("HairsFromFibers")
+        print(end - start)
 
+        start = time.time()
         for hair in hairs:
             guide = []
             for vertIdx in hair:
-                guide.append(hairObj.data.vertices[vertIdx].co.to_tuple())
+                # guide.append(hairObj.data.vertices[vertIdx].co.to_tuple())
+                guide.insert(0,hairObj.data.vertices[vertIdx].co.to_tuple())
             guides.append(guide)
+        end = time.time()      
+        print("AppendingGuides")
+        print(end - start)
         return guides
 
     def getHairsFromFibers(self, hair):
-        me = hair.data
-        usedV = []
-        usedE = []
+        start = time.time()
         guides = []
-
-        # Create a dictionary with the vert index as key and edge-keys as value
-        #It's a list of verts and the keys are the edges the verts belong to
+        allVerts = []
+        me = hair.data
+        
+        for v in me.vertices:
+            allVerts.append(v.index)
         vert_edges = dict([(v.index, []) for v in me.vertices if v.hide!=1])
         for ed in me.edges:
             for v in ed.key:
                 if ed.key[0] in vert_edges and ed.key[1] in vert_edges:
                     vert_edges[v].append(ed.key)
-
-        #endPoints = dict([(v, []) for v in vert_edges if len(vert_edges[v])<2])
         endPoints = [v for v in vert_edges if len(vert_edges[v])<2]
 
+        pointsPerSegment = endPoints[1] + 1
+        
+        guides = np.reshape(allVerts, (-1,pointsPerSegment))
+
+        end = time.time()      
+        print("HairFromFibers")
+        print(end - start)
+
+        return guides
+
+
+    def getHairsFromFibersNew(self, hair):
+        start = time.time()
+        guides = []
+        allVerts = []
+        me = hair.data
+        
+        for v in me.vertices:
+            allVerts.append(v.index)
+        vert_edges = dict([(v.index, []) for v in me.vertices if v.hide!=1])
+        for ed in me.edges:
+            for v in ed.key:
+                if ed.key[0] in vert_edges and ed.key[1] in vert_edges:
+                    vert_edges[v].append(ed.key)
+        endPoints = [v for v in vert_edges if len(vert_edges[v])<2]
+
+        pointsPerSegment = endPoints[1] + 1
+        nVertices = len(me.vertices)
+        nSegments = int(nVertices / pointsPerSegment)
+
+        for i in range(nSegments):
+            baseIndex = i * pointsPerSegment
+            guide = []
+            for j in range(pointsPerSegment):
+                guide.append(allVerts[baseIndex + j])
+            guides.append(guide)
+
+        end = time.time()      
+        print("HairFromFibers")
+        print(end - start)
+
+        return guides
+
+
+    def getHairsFromFibersOrig(self, hair):
+        me = hair.data
+        usedV = []
+        usedE = []
+        guides = []
+        all_verts = []
+
+        # Create a dictionary with the vert index as key and edge-keys as value
+        #It's a list of verts and the keys are the edges the verts belong to
+        start = time.time()
+        for v in me.vertices:
+            all_verts.append(v)
+        vert_edges = dict([(v.index, []) for v in me.vertices if v.hide!=1])
+        for ed in me.edges:
+            for v in ed.key:
+                if ed.key[0] in vert_edges and ed.key[1] in vert_edges:
+                    vert_edges[v].append(ed.key)
+        end = time.time()      
+        print("Creating dictionary")
+        print(end - start)
+
+        start = time.time()
+        #endPoints = dict([(v, []) for v in vert_edges if len(vert_edges[v])<2])
+        endPoints = [v for v in vert_edges if len(vert_edges[v])<2]
+        end = time.time()      
+        print("End Points")
+        print(end - start)
+
+
+        start = time.time()
         #For every endpoint
         for vert in endPoints:
                 hair=[]
@@ -826,6 +910,10 @@ class HAIRNET_OT_operator (bpy.types.Operator):
                     usedV.append(vert)
                     #add the hair to the list of hairs
                     guides.append(hair)
+
+        end = time.time()      
+        print("Assembling hair")
+        print(end - start)
 
         #guides now holds a list of hairs where each hair is a list of vertex indices in the mesh "me"
         return guides
